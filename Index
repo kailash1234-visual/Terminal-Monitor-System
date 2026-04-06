@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SYS_MONITOR — Terminal System Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --p:    #e8d44d;
+  --p2:   #c9a227;
+  --p3:   #7a5c00;
+  --p4:   #0d0900;
+  --p5:   #120d00;
+  --p6:   #1a1200;
+  --red:  #ff5533;
+  --cyan: #40e0c0;
+  --glow: rgba(232,212,77,.12);
+  --border: rgba(232,212,77,.2);
+  --scan: rgba(0,0,0,.25);
+  --mono: 'IBM Plex Mono', monospace;
+  --disp: 'Orbitron', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--p4);
+  color: var(--p);
+  font-family: var(--mono);
+  overflow-x: hidden;
+}
+
+/* CRT scanlines */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: repeating-linear-gradient(0deg,
+    transparent, transparent 2px,
+    var(--scan) 2px, var(--scan) 4px);
+}
+/* Vignette */
+body::after {
+  content: ''; position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+  background: radial-gradient(ellipse 120% 100% at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%);
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 3rem; height: 56px;
+  background: rgba(10,7,0,.95);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+nav::after {
+  content: '';
+  position: absolute; bottom: -2px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--p3), transparent);
+}
+.nav-logo {
+  font-family: var(--disp); font-size: 18px; font-weight: 900;
+  letter-spacing: 4px; color: var(--p);
+  text-shadow: 0 0 14px var(--p), 0 0 28px rgba(232,212,77,.3);
+}
+.nav-links { display: flex; gap: 2rem; list-style: none; }
+.nav-links a {
+  color: var(--p3); text-decoration: none;
+  font-size: 11px; letter-spacing: 2px;
+  font-family: var(--disp); font-weight: 400;
+  transition: color .2s;
+}
+.nav-links a:hover { color: var(--p); }
+.nav-dl {
+  background: transparent; border: 1px solid var(--p2);
+  color: var(--p2); font-family: var(--mono); font-size: 12px;
+  padding: 6px 20px; cursor: pointer; letter-spacing: 2px;
+  text-decoration: none; transition: background .2s, box-shadow .2s, color .2s;
+}
+.nav-dl:hover {
+  background: var(--glow);
+  box-shadow: 0 0 16px rgba(232,212,77,.25);
+  color: var(--p);
+}
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 7rem 2rem 4rem;
+  position: relative;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 60%, rgba(232,212,77,.04) 0%, transparent 70%);
+}
+/* Grid overlay */
+.hero-grid {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+  opacity: .4;
+}
+.hero-tag {
+  font-size: 10px; letter-spacing: 5px; color: var(--p3);
+  margin-bottom: 1.5rem; font-family: var(--disp);
+}
+.hero h1 {
+  font-family: var(--disp); font-size: clamp(52px, 9vw, 110px);
+  font-weight: 900; line-height: 1; letter-spacing: 6px;
+  color: var(--p);
+  text-shadow: 0 0 40px rgba(232,212,77,.5), 0 0 80px rgba(232,212,77,.2);
+  margin-bottom: 1.2rem;
+}
+.hero-sub {
+  font-size: 15px; font-weight: 300; color: var(--p3);
+  max-width: 500px; line-height: 1.8; margin-bottom: 3rem;
+  letter-spacing: .5px;
+}
+.hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-bottom: 4rem; }
+
+.btn-primary {
+  background: var(--p2); color: #000; border: none;
+  font-family: var(--disp); font-size: 11px; font-weight: 700;
+  padding: 13px 32px; cursor: pointer; letter-spacing: 3px;
+  text-decoration: none;
+  transition: box-shadow .2s, transform .1s, background .2s;
+}
+.btn-primary:hover {
+  background: var(--p);
+  box-shadow: 0 0 28px rgba(232,212,77,.5);
+  transform: translateY(-1px);
+}
+.btn-secondary {
+  background: transparent; border: 1px solid var(--p3);
+  color: var(--p3); font-family: var(--disp); font-size: 11px;
+  padding: 13px 32px; cursor: pointer; letter-spacing: 3px;
+  text-decoration: none;
+  transition: border-color .2s, color .2s, box-shadow .2s;
+}
+.btn-secondary:hover {
+  border-color: var(--p2); color: var(--p2);
+  box-shadow: 0 0 12px rgba(232,212,77,.15);
+}
+
+/* ── TERMINAL PREVIEW ── */
+.terminal-wrap {
+  width: 100%; max-width: 860px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,.7);
+  position: relative;
+}
+.terminal-wrap::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--p3), var(--p2) 40%, var(--p2) 60%, var(--p3));
+}
+.terminal-titlebar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  background: rgba(232,212,77,.04);
+}
+.t-dot { width: 10px; height: 10px; border-radius: 50%; }
+.t-dot.red    { background: #ff5f57; }
+.t-dot.amber  { background: #febc2e; }
+.t-dot.green  { background: #28c840; }
+.t-title { font-size: 11px; color: var(--p3); margin-left: 8px; letter-spacing: 2px; font-family: var(--disp); }
+.terminal-body { padding: 1.2rem 1.5rem; font-size: 13px; line-height: 1.9; text-align: left; }
+.t-line { display: flex; gap: 10px; }
+.t-prompt { color: var(--p3); flex-shrink: 0; }
+.t-cmd { color: var(--p); }
+.t-out { color: var(--p3); margin-left: 20px; font-size: 12px; }
+.t-cursor {
+  display: inline-block; width: 9px; height: 15px;
+  background: var(--p2); animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── SECTIONS ── */
+section { padding: 6rem 2rem; }
+.section-inner { max-width: 1100px; margin: 0 auto; }
+.section-tag {
+  font-size: 10px; letter-spacing: 5px; color: var(--p3);
+  margin-bottom: .75rem; font-family: var(--disp);
+}
+.section-title {
+  font-family: var(--disp); font-size: clamp(30px, 4vw, 50px);
+  font-weight: 900; color: var(--p); margin-bottom: 1rem;
+  letter-spacing: 3px;
+  text-shadow: 0 0 20px rgba(232,212,77,.25);
+}
+.section-desc {
+  font-size: 14px; color: var(--p3); max-width: 520px;
+  line-height: 1.85; margin-bottom: 3rem; font-weight: 300;
+}
+
+/* ── FEATURES ── */
+#features {
+  background: var(--p5);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.features-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1px; background: var(--border);
+}
+.feature-card {
+  padding: 2rem; background: var(--p5);
+  transition: background .2s;
+  position: relative; overflow: hidden;
+}
+.feature-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--p2), transparent);
+  opacity: 0; transition: opacity .3s;
+}
+.feature-card:hover { background: rgba(232,212,77,.04); }
+.feature-card:hover::before { opacity: 1; }
+.feature-icon {
+  font-family: var(--disp); font-size: 13px; font-weight: 900;
+  color: var(--p2); margin-bottom: 1rem; letter-spacing: 4px;
+  text-shadow: 0 0 12px rgba(232,212,77,.3);
+}
+.feature-title {
+  font-family: var(--disp); font-size: 10px; letter-spacing: 3px;
+  color: var(--p); margin-bottom: .75rem;
+}
+.feature-desc { font-size: 13px; color: var(--p3); line-height: 1.75; font-weight: 300; }
+
+/* ── INSTALL ── */
+#install { background: var(--p4); }
+.install-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+.install-card {
+  border: 1px solid var(--border); padding: 2rem;
+  background: rgba(232,212,77,.02);
+  position: relative;
+}
+.install-card::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--p3), var(--p2) 50%, var(--p3));
+  opacity: .6;
+}
+.install-card h3 {
+  font-family: var(--disp); font-size: 14px; font-weight: 700;
+  color: var(--p); margin-bottom: 1.5rem; letter-spacing: 3px;
+}
+.code-block {
+  background: #000; border: 1px solid var(--border);
+  padding: 1rem 1.25rem; font-size: 12.5px; line-height: 2.1;
+  position: relative; margin-bottom: 1rem;
+}
+.code-block .comment { color: var(--p3); }
+.code-block .cmd { color: var(--p); }
+.code-block .out { color: var(--p3); font-size: 12px; }
+.copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--p3); font-family: var(--mono); font-size: 10px;
+  padding: 3px 10px; cursor: pointer; letter-spacing: 2px;
+  transition: color .2s, border-color .2s;
+}
+.copy-btn:hover { color: var(--p); border-color: var(--p2); }
+.install-note { font-size: 12px; color: var(--p3); line-height: 1.75; font-weight: 300; }
+
+/* ── CONTROLS ── */
+#controls {
+  background: var(--p5);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.controls-table { width: 100%; border-collapse: collapse; }
+.controls-table th {
+  text-align: left; padding: 12px 16px;
+  font-family: var(--disp); font-size: 9px; letter-spacing: 3px;
+  color: var(--p3); border-bottom: 1px solid var(--border);
+}
+.controls-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(232,212,77,.07);
+  font-size: 13px;
+}
+.controls-table tr:last-child td { border-bottom: none; }
+.controls-table tr:hover td { background: var(--glow); }
+kbd {
+  display: inline-block;
+  background: rgba(232,212,77,.08);
+  border: 1px solid var(--p3); color: var(--p);
+  font-family: var(--mono); font-size: 12px;
+  padding: 2px 10px; letter-spacing: 1px; margin: 2px;
+}
+.td-desc { color: var(--p3); font-size: 13px; font-weight: 300; }
+.td-panel { color: var(--p3); font-size: 11px; letter-spacing: 1px; }
+
+/* ── DOCS ── */
+#docs { background: var(--p4); }
+.docs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.docs-panel {
+  border: 1px solid var(--border); padding: 1.5rem;
+  background: rgba(232,212,77,.02); position: relative;
+}
+.docs-panel::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--p3), var(--p2) 50%, var(--p3));
+  opacity: .5;
+}
+.docs-panel h3 {
+  font-family: var(--disp); font-size: 13px; font-weight: 700;
+  color: var(--p); margin-bottom: 1rem; letter-spacing: 3px;
+  border-bottom: 1px solid var(--border); padding-bottom: 8px;
+}
+.docs-panel ul { list-style: none; }
+.docs-panel li {
+  font-size: 13px; color: var(--p3);
+  padding: 6px 0; border-bottom: 1px solid rgba(232,212,77,.05);
+  display: flex; gap: 10px; align-items: flex-start;
+  line-height: 1.65; font-weight: 300;
+}
+.docs-panel li:last-child { border-bottom: none; }
+.docs-panel li::before { content: '▸'; color: var(--p2); flex-shrink: 0; margin-top: 2px; }
+
+/* ── DOWNLOAD ── */
+#download {
+  background: var(--p5);
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.dl-box {
+  max-width: 580px; margin: 0 auto;
+  border: 1px solid var(--p2); padding: 3.5rem 2rem;
+  background: rgba(232,212,77,.03);
+  box-shadow: 0 0 80px rgba(232,212,77,.07), inset 0 0 40px rgba(232,212,77,.02);
+  position: relative;
+}
+.dl-box::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--p2), transparent);
+}
+.dl-version {
+  font-family: var(--disp); font-size: 10px; letter-spacing: 4px;
+  color: var(--p3); margin-bottom: 1rem;
+}
+.dl-title {
+  font-family: var(--disp); font-size: clamp(36px, 6vw, 60px);
+  font-weight: 900; color: var(--p);
+  text-shadow: 0 0 30px rgba(232,212,77,.4);
+  margin-bottom: 1rem; letter-spacing: 4px;
+}
+.dl-desc { font-size: 14px; color: var(--p3); line-height: 1.75; margin-bottom: 2rem; font-weight: 300; }
+.dl-btns { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+
+/* ── FOOTER ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 2rem 3rem;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem;
+  background: var(--p4);
+}
+.footer-logo {
+  font-family: var(--disp); font-size: 14px; font-weight: 700;
+  color: var(--p3); letter-spacing: 3px;
+}
+.footer-links { display: flex; gap: 1.5rem; list-style: none; }
+.footer-links a {
+  font-size: 11px; color: var(--p3); text-decoration: none;
+  letter-spacing: 1px; transition: color .2s;
+  font-family: var(--disp);
+}
+.footer-links a:hover { color: var(--p2); }
+.footer-note { font-size: 10px; color: var(--p3); letter-spacing: 2px; font-family: var(--disp); }
+
+/* ── ANIMATIONS ── */
+.fade-in { opacity: 0; transform: translateY(20px); transition: opacity .65s ease, transform .65s ease; }
+.fade-in.visible { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 768px) {
+  nav { padding: 0 1.5rem; }
+  .nav-links { display: none; }
+  .install-grid, .docs-grid { grid-template-columns: 1fr; }
+  footer { flex-direction: column; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">SYS_MON</div>
+  <ul class="nav-links">
+    <li><a href="#features">FEATURES</a></li>
+    <li><a href="#install">INSTALL</a></li>
+    <li><a href="#controls">CONTROLS</a></li>
+    <li><a href="#docs">DOCS</a></li>
+    <li><a href="#download">DOWNLOAD</a></li>
+  </ul>
+  <a class="nav-dl" href="https://github.com/kailash1234-visual/Terminal-Monitor-System/releases/latest" target="_blank">↓ DOWNLOAD</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <p class="hero-tag">OPEN SOURCE &nbsp;·&nbsp; PYTHON &nbsp;·&nbsp; TERMINAL UI</p>
+  <h1>SYS_MONITOR</h1>
+  <p class="hero-sub">A real-time terminal system monitor. Watch CPU, memory, disk, network, and processes — live, in your command line.</p>
+  <div class="hero-btns">
+    <a class="btn-primary" href="https://github.com/kailash1234-visual/Terminal-Monitor-System/releases/latest/download/sysmon.exe" target="_blank">↓ DOWNLOAD EXE</a>
+    <a class="btn-secondary" href="https://github.com/kailash1234-visual/Terminal-Monitor-System" target="_blank">VIEW ON GITHUB</a>
+  </div>
+  <div class="terminal-wrap">
+    <div class="terminal-titlebar">
+      <div class="t-dot red"></div><div class="t-dot amber"></div><div class="t-dot green"></div>
+      <span class="t-title">COMMAND PROMPT — sysmon.py</span>
+    </div>
+    <div class="terminal-body">
+      <div class="t-line"><span class="t-prompt">C:\></span><span class="t-cmd">pip install psutil windows-curses</span></div>
+      <div class="t-out">Successfully installed psutil-7.2.2 windows-curses-2.3.3</div>
+      <div class="t-line" style="margin-top:6px"><span class="t-prompt">C:\></span><span class="t-cmd">python sysmon.py</span></div>
+      <div class="t-out" style="margin-top:4px">┌─ SYS_MONITOR v2.0 ─────────────────────────────────────────────────┐</div>
+      <div class="t-out">│ CPU &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ <span style="color:var(--p2)">OK</span> ] │</div>
+      <div class="t-out">&nbsp; C0 [████████████░░░░░░░░░░░░░░░░] &nbsp;42%</div>
+      <div class="t-out">&nbsp; C1 [██████████████████░░░░░░░░░░] &nbsp;65% <span style="color:#e8a010">▲</span></div>
+      <div class="t-out">&nbsp; C2 [██████░░░░░░░░░░░░░░░░░░░░░░] &nbsp;21%</div>
+      <div class="t-out">&nbsp; C3 [████████████████████████░░░░] &nbsp;<span style="color:#e8a010">82%</span></div>
+      <div class="t-out">│ MEM &nbsp;7.24/16.00 GB &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ <span style="color:var(--p2)">OK</span> ] │</div>
+      <div class="t-out">&nbsp; RAM  [█████████████░░░░░░░░░░░░░░░] &nbsp;45%</div>
+      <div class="t-out">&nbsp; SWAP [██░░░░░░░░░░░░░░░░░░░░░░░░░░] &nbsp;&nbsp;8%</div>
+      <div class="t-out">└────────────────────────────────────────────────────────────────────┘</div>
+      <div class="t-line" style="margin-top:4px"><span class="t-prompt">></span><span class="t-cursor"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-inner">
+    <p class="section-tag fade-in">WHAT IT DOES</p>
+    <h2 class="section-title fade-in">Everything. Live.</h2>
+    <p class="section-desc fade-in">Six panels, one screen, zero configuration. Just run it.</p>
+    <div class="features-grid">
+      <div class="feature-card fade-in">
+        <div class="feature-icon">CPU</div>
+        <div class="feature-title">PROCESSOR</div>
+        <div class="feature-desc">Overall usage, per-core bars, clock frequency, and a 60-second sparkline. Badges flip to WARN or CRIT as load climbs.</div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon">MEM</div>
+        <div class="feature-title">MEMORY</div>
+        <div class="feature-desc">RAM and swap in GB, load average, and sparkline history. Swap is tracked separately so nothing hides.</div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon">DSK</div>
+        <div class="feature-title">DISK</div>
+        <div class="feature-desc">Per-mount usage bars for every drive — C:, D:, /, /home. Total bytes read and written since boot.</div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon">NET</div>
+        <div class="feature-title">NETWORK</div>
+        <div class="feature-desc">Per-interface stats — WiFi, Ethernet, Loopback. Live speeds, IP address, packet counts. Press TAB to switch.</div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon">PRC</div>
+        <div class="feature-title">PROCESS KILLER</div>
+        <div class="feature-desc">Top 20 processes by CPU. Arrow keys to select, K to kill — with a Y/N confirmation so nothing gets killed by accident.</div>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon">LOG</div>
+        <div class="feature-title">SYSTEM LOG</div>
+        <div class="feature-desc">Live event log. Auto-warns when CPU or RAM exceeds 90%. Kill events, errors, and startup info — all color-coded.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="section-inner">
+    <p class="section-tag fade-in">GETTING STARTED</p>
+    <h2 class="section-title fade-in">Install &amp; Run</h2>
+    <p class="section-desc fade-in">Two commands on any OS. Or grab the EXE for Windows — no Python needed.</p>
+    <div class="install-grid">
+      <div class="install-card fade-in">
+        <h3>🪟 WINDOWS</h3>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          <div class="comment"># Install dependencies</div>
+          <div class="cmd">pip install psutil windows-curses</div>
+          <div class="comment"># Run</div>
+          <div class="cmd">python sysmon.py</div>
+        </div>
+        <p class="install-note">Or download <strong style="color:var(--p2)">sysmon.exe</strong> — runs on any Windows 10/11 PC with no Python required.</p>
+      </div>
+      <div class="install-card fade-in">
+        <h3>🐧 LINUX / MACOS</h3>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          <div class="comment"># Install dependency</div>
+          <div class="cmd">pip install psutil</div>
+          <div class="comment"># Run</div>
+          <div class="cmd">python3 sysmon.py</div>
+        </div>
+        <p class="install-note"><code style="color:var(--p2)">curses</code> is built into Python on Linux and macOS — no extra install needed.</p>
+      </div>
+    </div>
+    <div class="install-card fade-in">
+      <h3>📦 BUILD EXE (Windows)</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+        <div class="comment"># Build a standalone executable</div>
+        <div class="cmd">pip install pyinstaller</div>
+        <div class="cmd">pyinstaller --onefile --console sysmon.py</div>
+        <div class="out"># Output: dist\sysmon.exe</div>
+      </div>
+      <p class="install-note">Share <code style="color:var(--p2)">dist\sysmon.exe</code> with anyone. Run it from Command Prompt — not by double-clicking.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CONTROLS -->
+<section id="controls">
+  <div class="section-inner">
+    <p class="section-tag fade-in">KEYBOARD</p>
+    <h2 class="section-title fade-in">Controls</h2>
+    <p class="section-desc fade-in">Everything is keyboard-driven. No mouse needed.</p>
+    <table class="controls-table fade-in">
+      <thead><tr><th>KEY</th><th>ACTION</th><th>PANEL</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>↑</kbd><kbd>↓</kbd></td><td class="td-desc">Select a process in the list</td><td class="td-panel">Processes</td></tr>
+        <tr><td><kbd>K</kbd></td><td class="td-desc">Kill selected process — shows Y/N confirmation popup</td><td class="td-panel">Processes</td></tr>
+        <tr><td><kbd>TAB</kbd></td><td class="td-desc">Cycle through network interfaces (WiFi → Ethernet → Loopback)</td><td class="td-panel">Network</td></tr>
+        <tr><td><kbd>R</kbd></td><td class="td-desc">Force an immediate data refresh</td><td class="td-panel">Global</td></tr>
+        <tr><td><kbd>Q</kbd></td><td class="td-desc">Quit the application</td><td class="td-panel">Global</td></tr>
+        <tr><td><kbd>Ctrl+C</kbd></td><td class="td-desc">Force quit</td><td class="td-panel">Global</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- DOCS -->
+<section id="docs">
+  <div class="section-inner">
+    <p class="section-tag fade-in">REFERENCE</p>
+    <h2 class="section-title fade-in">Panel Docs</h2>
+    <p class="section-desc fade-in">What each panel shows and how to read it.</p>
+    <div class="docs-grid">
+      <div class="docs-panel fade-in">
+        <h3>CPU</h3>
+        <ul>
+          <li>Overall CPU % with NOMINAL / WARN / CRIT badge</li>
+          <li>Per-core bars — one row per logical core</li>
+          <li>Current clock frequency in GHz</li>
+          <li>60-second sparkline history</li>
+          <li>Badge turns amber above 65%, red above 85%</li>
+        </ul>
+      </div>
+      <div class="docs-panel fade-in">
+        <h3>MEMORY</h3>
+        <ul>
+          <li>RAM used vs total displayed in GB</li>
+          <li>RAM and swap usage bars</li>
+          <li>System load average on Linux/macOS</li>
+          <li>60-second sparkline history</li>
+          <li>High swap = memory pressure warning</li>
+        </ul>
+      </div>
+      <div class="docs-panel fade-in">
+        <h3>DISK</h3>
+        <ul>
+          <li>Usage bar for every mounted partition</li>
+          <li>Shows mount point, used %, used GB, total GB</li>
+          <li>Total bytes read and written since boot</li>
+          <li>Color shifts amber at 65%, red at 85%</li>
+        </ul>
+      </div>
+      <div class="docs-panel fade-in">
+        <h3>NETWORK</h3>
+        <ul>
+          <li>Press TAB to cycle between interfaces</li>
+          <li>Interface name, type (WiFi / ETH / Loop), and IP</li>
+          <li>Live upload and download speed</li>
+          <li>Total bytes sent and received</li>
+          <li>All-interfaces combined summary below divider</li>
+          <li>60-second download sparkline</li>
+        </ul>
+      </div>
+      <div class="docs-panel fade-in">
+        <h3>PROCESSES</h3>
+        <ul>
+          <li>Top 20 processes sorted by CPU usage</li>
+          <li>Columns: Name, PID, CPU%, MEM%, Status</li>
+          <li>Use ↑/↓ to highlight a row</li>
+          <li>Press K — popup asks Y to confirm or N to cancel</li>
+          <li>System processes may be protected (Access Denied logged)</li>
+        </ul>
+      </div>
+      <div class="docs-panel fade-in">
+        <h3>SYSTEM LOG</h3>
+        <ul>
+          <li>Live timestamped event stream</li>
+          <li>Gold = info, amber = warning, red = error</li>
+          <li>Auto-logs CPU or RAM alerts above 90%</li>
+          <li>Logs process kills, errors, and startup info</li>
+          <li>Keeps last 200 log lines in memory</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download">
+  <div class="section-inner" style="display:flex;justify-content:center;">
+    <div class="dl-box fade-in">
+      <div class="dl-version">LATEST RELEASE &nbsp;·&nbsp; v2.0</div>
+      <div class="dl-title">GET IT NOW</div>
+      <p class="dl-desc">Download the Python source to run on any OS, or the prebuilt Windows EXE — no Python installation required.</p>
+      <div class="dl-btns">
+        <a class="btn-primary" href="https://github.com/kailash1234-visual/Terminal-Monitor-System/releases/latest/download/sysmon.exe" target="_blank">↓ WINDOWS EXE</a>
+        <a class="btn-secondary" href="https://github.com/kailash1234-visual/Terminal-Monitor-System/archive/refs/heads/main.zip" target="_blank">↓ SOURCE ZIP</a>
+        <a class="btn-secondary" href="https://github.com/kailash1234-visual/Terminal-Monitor-System" target="_blank">GITHUB REPO</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">SYS_MONITOR v2.0</div>
+  <ul class="footer-links">
+    <li><a href="https://github.com/kailash1234-visual/Terminal-Monitor-System" target="_blank">GitHub</a></li>
+    <li><a href="https://github.com/kailash1234-visual/Terminal-Monitor-System/issues" target="_blank">Issues</a></li>
+    <li><a href="https://github.com/kailash1234-visual/Terminal-Monitor-System/releases" target="_blank">Releases</a></li>
+    <li><a href="#install">Install</a></li>
+  </ul>
+  <div class="footer-note">Built with Python · psutil · curses</div>
+</footer>
+
+<script>
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+
+function copyCode(btn) {
+  const block = btn.parentElement;
+  const text = Array.from(block.querySelectorAll('.cmd')).map(l => l.textContent).join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'COPIED!';
+    setTimeout(() => btn.textContent = 'COPY', 1800);
+  });
+}
+</script>
+</body>
+</html>
