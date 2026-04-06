@@ -16,7 +16,7 @@ Standalone Executable: Build into a single .exe for easy distribution.
 Clone the repository:
 
 Bash
-git clone https://github.com/yourusername/terminal-sysmon.git
+git clone https://github.com/kailash1234-visual/terminal-sysmon.git
 cd terminal-sysmon
 Install dependencies:
 (Ensure you have Python 3.x installed)
