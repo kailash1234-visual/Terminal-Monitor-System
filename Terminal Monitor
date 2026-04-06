@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SYS_MONITOR v2.4.1</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --p:    #e8d44d;   /* phosphor yellow-gold */
+  --p2:   #c9a227;   /* dimmer gold */
+  --p3:   #7a5c00;   /* dark gold */
+  --p4:   #1a1200;   /* near-black */
+  --p5:   #2e2000;   /* panel bg */
+  --red:  #ff5533;
+  --cyan: #40e0c0;
+  --glow: rgba(232,212,77,.18);
+  --border: rgba(232,212,77,.22);
+  --scan: rgba(0,0,0,.28);
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-disp: 'Orbitron', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--p4);
+  color: var(--p);
+  font-family: var(--font-mono);
+  overflow: hidden;
+}
+
+/* ── CRT effects ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 1000; pointer-events: none;
+  background: repeating-linear-gradient(0deg,
+    transparent, transparent 2px,
+    var(--scan) 2px, var(--scan) 4px);
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 999; pointer-events: none;
+  background:
+    radial-gradient(ellipse 120% 100% at 50% 50%, transparent 50%, rgba(0,0,0,.6) 100%),
+    radial-gradient(ellipse 60% 30% at 50% 0%,   rgba(232,212,77,.04) 0%, transparent 70%);
+}
+
+/* Subtle noise texture via pseudo-random gradient */
+.screen {
+  position: relative;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 14px 16px 10px;
+  gap: 10px;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 80%, rgba(232,212,77,.03) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 80% 20%, rgba(232,212,77,.04) 0%, transparent 70%);
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -3px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--p3), transparent);
+}
+.tb-left {
+  display: flex; align-items: baseline; gap: 10px;
+}
+.tb-logo {
+  font-family: var(--font-disp);
+  font-size: 20px; font-weight: 900;
+  letter-spacing: 4px;
+  color: var(--p);
+  text-shadow: 0 0 16px var(--p), 0 0 30px rgba(232,212,77,.4);
+}
+.tb-ver {
+  font-size: 11px; color: var(--p3); letter-spacing: 2px;
+}
+.tb-center {
+  font-family: var(--font-disp);
+  font-size: 11px; letter-spacing: 3px; color: var(--p2);
+  text-align: center;
+}
+.tb-right {
+  text-align: right; font-size: 11px; color: var(--p3); letter-spacing: 1px;
+}
+#clock { color: var(--p2); font-size: 13px; letter-spacing: 2px; }
+
+.blink { animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── GRID ── */
+.grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* ── PANEL ── */
+.panel {
+  border: 1px solid var(--border);
+  background: rgba(12,8,0,.7);
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  position: relative; overflow: hidden;
+  backdrop-filter: blur(2px);
+}
+
+/* Top scan shimmer */
+.panel::before {
+  content: '';
+  position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(232,212,77,.04), transparent);
+  animation: panel-sweep 6s linear infinite;
+  pointer-events: none;
+}
+@keyframes panel-sweep {
+  0%   { left: -60%; }
+  100% { left: 160%; }
+}
+
+/* Corner accents */
+.panel::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--p3), var(--p2) 30%, var(--p2) 70%, var(--p3));
+  opacity: .8;
+}
+
+.panel-title {
+  font-family: var(--font-disp);
+  font-size: 10px; letter-spacing: 3px; font-weight: 700;
+  color: var(--p2);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 500;
+  padding: 1px 7px;
+  border: 1px solid;
+  letter-spacing: 1px;
+}
+.badge.ok   { border-color: var(--p2); color: var(--p2); }
+.badge.warn { border-color: #e8a010; color: #e8a010; }
+.badge.crit { border-color: var(--red); color: var(--red); animation: blink .45s step-end infinite; }
+
+/* ── BIG METRIC ── */
+.big-val {
+  font-family: var(--font-disp);
+  font-size: 48px; line-height: 1; font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 0 0 20px currentColor, 0 0 40px rgba(232,212,77,.25);
+}
+.big-val.ok   { color: var(--p); }
+.big-val.warn { color: #e8a010; }
+.big-val.crit { color: var(--red); }
+
+/* ── BARS ── */
+.bar-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.bar-label { width: 66px; color: var(--p3); flex-shrink: 0; letter-spacing: 1px; font-size: 10px; }
+.bar-track {
+  flex: 1; height: 8px;
+  background: rgba(232,212,77,.06);
+  border: 1px solid var(--border);
+  position: relative; overflow: hidden;
+}
+.bar-fill {
+  height: 100%; transition: width .7s cubic-bezier(.4,0,.2,1);
+  background: var(--p2);
+  box-shadow: 0 0 8px var(--p2);
+  position: relative;
+}
+.bar-fill::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 80%, rgba(255,255,255,.3));
+}
+.bar-fill.warn { background: #e8a010; box-shadow: 0 0 8px #e8a010; }
+.bar-fill.crit { background: var(--red); box-shadow: 0 0 8px var(--red); }
+.bar-pct { width: 36px; text-align: right; color: var(--p); font-size: 11px; }
+
+/* ── SPARKLINE ── */
+.spark-wrap {
+  flex: 1; display: flex; align-items: flex-end; gap: 1.5px;
+  overflow: hidden; min-height: 28px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+.spark-bar {
+  flex: 1; min-width: 2px;
+  transition: height .4s ease;
+  opacity: .85;
+}
+
+/* ── NET TABLE ── */
+.net-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+.net-table td {
+  padding: 3px 5px;
+  border-bottom: 1px solid rgba(232,212,77,.08);
+}
+.net-table td:first-child { color: var(--p3); font-size: 10px; letter-spacing: 1px; }
+.net-table td:last-child { text-align: right; }
+.up   { color: var(--cyan); }
+.down { color: #e8a010; }
+
+/* ── PROCESS LIST ── */
+.proc-head {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+  font-size: 9px; letter-spacing: 2px; font-family: var(--font-disp);
+  color: var(--p3);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px; margin-bottom: 2px;
+}
+.proc-row {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+  font-size: 11px; padding: 2px 0;
+  transition: background .15s;
+}
+.proc-row:hover { background: var(--glow); }
+
+/* ── LOG ── */
+.log-area {
+  flex: 1; overflow-y: auto;
+  font-size: 10.5px; line-height: 1.75;
+  padding-right: 4px;
+}
+.log-area::-webkit-scrollbar { width: 3px; }
+.log-area::-webkit-scrollbar-thumb { background: var(--p3); border-radius: 2px; }
+.log-line { display: flex; gap: 8px; }
+.log-time { color: var(--p3); flex-shrink: 0; font-size: 10px; }
+.log-msg.info { color: var(--p2); }
+.log-msg.warn { color: #e8a010; }
+.log-msg.err  { color: var(--red); }
+
+/* ── STATUS BAR ── */
+.statusbar {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  display: flex; gap: 24px; align-items: center;
+  font-size: 10px; color: var(--p3); letter-spacing: 1px;
+}
+.statusbar span { display: flex; gap: 6px; align-items: center; }
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--p);
+  box-shadow: 0 0 6px var(--p);
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+.dot.warn { background: #e8a010; box-shadow: 0 0 6px #e8a010; }
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+.sb-val { color: var(--p2); }
+
+/* Wide panel: CPU spans 2 rows */
+.panel-cpu { grid-row: span 1; }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-logo">SYS_MONITOR<span class="blink">▮</span></div>
+      <div class="tb-ver">v2.4.1</div>
+    </div>
+    <div class="tb-center">HOST: ARCH-X86 &nbsp;|&nbsp; KERNEL: 6.8.2</div>
+    <div class="tb-right"><span id="clock">--:--:--</span></div>
+  </div>
+
+  <!-- PANELS -->
+  <div class="grid">
+
+    <!-- CPU -->
+    <div class="panel panel-cpu">
+      <div class="panel-title">CPU USAGE <span class="badge ok" id="cpu-badge">NOMINAL</span></div>
+      <div class="big-val ok" id="cpu-val">00%</div>
+      <div id="cpu-cores"></div>
+      <div class="spark-wrap" id="cpu-spark"></div>
+    </div>
+
+    <!-- MEMORY -->
+    <div class="panel">
+      <div class="panel-title">MEMORY <span class="badge ok" id="mem-badge">NOMINAL</span></div>
+      <div class="big-val ok" id="mem-val">0.0 GB</div>
+      <div id="mem-bars"></div>
+      <div class="spark-wrap" id="mem-spark"></div>
+    </div>
+
+    <!-- DISK -->
+    <div class="panel">
+      <div class="panel-title">DISK I/O <span class="badge ok" id="disk-badge">NOMINAL</span></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;justify-content:center;">
+        <div id="disk-bars"></div>
+        <table class="net-table" style="margin-top:6px;">
+          <tr><td>READ</td><td class="up" id="disk-read">0 MB/s</td></tr>
+          <tr><td>WRITE</td><td class="down" id="disk-write">0 MB/s</td></tr>
+          <tr><td>IOPS</td><td id="disk-iops">0</td></tr>
+          <tr><td>TEMP</td><td id="disk-temp">0°C</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- NETWORK -->
+    <div class="panel">
+      <div class="panel-title">NETWORK <span class="badge ok" id="net-badge">ONLINE</span></div>
+      <table class="net-table">
+        <tr><td>↑ UPLOAD</td><td class="up" id="net-up">0 KB/s</td></tr>
+        <tr><td>↓ DOWNLOAD</td><td class="down" id="net-down">0 KB/s</td></tr>
+        <tr><td>PACKETS TX</td><td id="net-tx">0</td></tr>
+        <tr><td>PACKETS RX</td><td id="net-rx">0</td></tr>
+        <tr><td>LATENCY</td><td id="net-lat">0 ms</td></tr>
+        <tr><td>INTERFACE</td><td style="color:var(--p3)">eth0</td></tr>
+      </table>
+      <div class="spark-wrap" id="net-spark"></div>
+    </div>
+
+    <!-- PROCESSES -->
+    <div class="panel">
+      <div class="panel-title">TOP PROCESSES <span class="badge ok">PID LIST</span></div>
+      <div class="proc-head">
+        <span>PROCESS</span><span>PID</span><span>CPU%</span><span>MEM%</span>
+      </div>
+      <div id="proc-list"></div>
+    </div>
+
+    <!-- LOG -->
+    <div class="panel">
+      <div class="panel-title">SYSTEM LOG <span class="badge ok" id="log-badge">LIVE</span></div>
+      <div class="log-area" id="log-area"></div>
+    </div>
+
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <span><span class="dot"></span> SYSTEM ONLINE</span>
+    <span><span class="dot"></span> 4 CORES ACTIVE</span>
+    <span><span class="dot warn"></span> UPTIME: <span class="sb-val" id="uptime">0d 0h 0m</span></span>
+    <span>TEMP: <span class="sb-val" id="cpu-temp">0°C</span></span>
+    <span>LOAD: <span class="sb-val" id="load-avg">0.00 0.00 0.00</span></span>
+  </div>
+
+</div>
+<script>
+const SPARK_LEN = 42;
+const cpuHistory = Array(SPARK_LEN).fill(0);
+const memHistory = Array(SPARK_LEN).fill(0);
+const netHistory = Array(SPARK_LEN).fill(0);
+let uptimeSec = Math.floor(Math.random() * 86400 * 3);
+let pktTx = Math.floor(Math.random() * 50000);
+let pktRx = Math.floor(Math.random() * 100000);
+
+const PROCESSES = [
+  'node','python3','nginx','postgres','redis-server',
+  'dockerd','systemd','sshd','chromium','java','rust-analyzer','go'
+];
+const LOG_TEMPLATES = [
+  ['info','kernel: process {pid} spawned on cpu{c}'],
+  ['info','net: packet burst detected on eth0 ({n} pkts)'],
+  ['info','disk: flush completed — {n} blocks written'],
+  ['warn','cpu: core{c} thermal throttling at {t}°C'],
+  ['warn','mem: swap usage elevated ({n}%)'],
+  ['info','auth: user root login from 192.168.1.{n}'],
+  ['err', 'disk: I/O error on sector {n} (retrying)'],
+  ['info','cron: scheduled task /usr/bin/backup.sh started'],
+  ['info','net: new connection from 10.0.0.{n}:443'],
+  ['warn','mem: process {pid} exceeded memory limit'],
+];
+
+const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const lerp = (a,b,t) => a+(b-a)*t;
+let cpuTarget=35, memTarget=55, cpuCur=35, memCur=55;
+
+function updateClock(){
+  const n=new Date(), p=v=>String(v).padStart(2,'0');
+  document.getElementById('clock').textContent=`${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+}
+function updateUptime(){
+  uptimeSec++;
+  const d=Math.floor(uptimeSec/86400);
+  const h=Math.floor((uptimeSec%86400)/3600);
+  const m=Math.floor((uptimeSec%3600)/60);
+  document.getElementById('uptime').textContent=`${d}d ${h}h ${m}m`;
+}
+
+function sparkColor(v){
+  if(v>85) return 'var(--red)';
+  if(v>65) return '#e8a010';
+  return 'var(--p2)';
+}
+function renderSpark(id,history){
+  const el=document.getElementById(id); if(!el) return;
+  const max=Math.max(...history,1);
+  el.innerHTML=history.map(v=>{
+    const h=Math.max(4,Math.round((v/max)*100));
+    const c=sparkColor(v);
+    return `<div class="spark-bar" style="height:${h}%;background:${c};box-shadow:0 0 3px ${c}"></div>`;
+  }).join('');
+}
+function setBadge(id,val){
+  const el=document.getElementById(id); if(!el) return;
+  if(val>85){el.className='badge crit';el.textContent='CRITICAL';}
+  else if(val>65){el.className='badge warn';el.textContent='WARNING';}
+  else{el.className='badge ok';el.textContent='NOMINAL';}
+}
+
+function updateCPU(){
+  if(Math.random()<.05) cpuTarget=rnd(10,95);
+  cpuCur=lerp(cpuCur,cpuTarget,.15)+(Math.random()-.5)*4;
+  cpuCur=Math.max(2,Math.min(99,cpuCur));
+  cpuHistory.push(cpuCur); cpuHistory.shift();
+
+  const pct=Math.round(cpuCur);
+  const el=document.getElementById('cpu-val');
+  el.textContent=pct+'%';
+  el.className='big-val '+(pct>85?'crit':pct>65?'warn':'ok');
+  setBadge('cpu-badge',pct);
+
+  const temp=rnd(42,88);
+  const te=document.getElementById('cpu-temp');
+  te.textContent=temp+'°C';
+  te.style.color=temp>75?'var(--red)':temp>60?'#e8a010':'var(--p2)';
+  document.getElementById('load-avg').textContent=
+    (cpuCur/100*4).toFixed(2)+' '+(cpuCur/100*3.2).toFixed(2)+' '+(cpuCur/100*2.8).toFixed(2);
+
+  const cvals=[cpuCur+rnd(-10,10),cpuCur+rnd(-10,10),cpuCur+rnd(-10,10),cpuCur+rnd(-10,10)].map(v=>Math.max(1,Math.min(99,v)));
+  document.getElementById('cpu-cores').innerHTML=cvals.map((v,i)=>{
+    const p=Math.round(v);
+    const cls=p>85?'crit':p>65?'warn':'';
+    return `<div class="bar-row"><span class="bar-label">CORE ${i}</span><div class="bar-track"><div class="bar-fill ${cls}" style="width:${p}%"></div></div><span class="bar-pct">${p}%</span></div>`;
+  }).join('');
+
+  renderSpark('cpu-spark',cpuHistory);
+}
+
+function updateMem(){
+  if(Math.random()<.04) memTarget=rnd(20,90);
+  memCur=lerp(memCur,memTarget,.1)+(Math.random()-.5)*2;
+  memCur=Math.max(10,Math.min(99,memCur));
+  memHistory.push(memCur); memHistory.shift();
+
+  const used=(memCur/100*16).toFixed(1);
+  const el=document.getElementById('mem-val');
+  el.textContent=used+' GB';
+  const pct=Math.round(memCur);
+  el.className='big-val '+(pct>85?'crit':pct>65?'warn':'ok');
+  setBadge('mem-badge',pct);
+
+  const swap=rnd(0,30), cached=rnd(10,40);
+  document.getElementById('mem-bars').innerHTML=
+    `<div class="bar-row"><span class="bar-label">USED</span><div class="bar-track"><div class="bar-fill ${pct>85?'crit':pct>65?'warn':''}" style="width:${pct}%"></div></div><span class="bar-pct">${pct}%</span></div>
+     <div class="bar-row"><span class="bar-label">CACHED</span><div class="bar-track"><div class="bar-fill" style="width:${cached}%;background:var(--p3);box-shadow:none"></div></div><span class="bar-pct">${cached}%</span></div>
+     <div class="bar-row"><span class="bar-label">SWAP</span><div class="bar-track"><div class="bar-fill ${swap>20?'warn':''}" style="width:${swap}%"></div></div><span class="bar-pct">${swap}%</span></div>`;
+
+  renderSpark('mem-spark',memHistory);
+}
+
+function updateDisk(){
+  const read=(Math.random()*120).toFixed(1);
+  const write=(Math.random()*80).toFixed(1);
+  const iops=rnd(100,3200);
+  const temp=rnd(28,52);
+  const diskPct=rnd(35,75);
+  document.getElementById('disk-read').textContent=read+' MB/s';
+  document.getElementById('disk-write').textContent=write+' MB/s';
+  document.getElementById('disk-iops').textContent=iops.toLocaleString();
+  document.getElementById('disk-temp').textContent=temp+'°C';
+  setBadge('disk-badge',diskPct);
+  document.getElementById('disk-bars').innerHTML=
+    `<div class="bar-row"><span class="bar-label">/ (root)</span><div class="bar-track"><div class="bar-fill ${diskPct>85?'crit':diskPct>65?'warn':''}" style="width:${diskPct}%"></div></div><span class="bar-pct">${diskPct}%</span></div>
+     <div class="bar-row"><span class="bar-label">/home</span><div class="bar-track"><div class="bar-fill" style="width:${rnd(20,60)}%"></div></div><span class="bar-pct">${rnd(20,60)}%</span></div>
+     <div class="bar-row"><span class="bar-label">/var</span><div class="bar-track"><div class="bar-fill" style="width:${rnd(10,45)}%"></div></div><span class="bar-pct">${rnd(10,45)}%</span></div>`;
+}
+
+function updateNet(){
+  const up=rnd(10,800), down=rnd(50,2400), lat=rnd(2,95);
+  pktTx+=rnd(10,200); pktRx+=rnd(20,400);
+  netHistory.push(down/2400*100); netHistory.shift();
+  document.getElementById('net-up').textContent=up>1000?(up/1000).toFixed(1)+' MB/s':up+' KB/s';
+  document.getElementById('net-down').textContent=down>1000?(down/1000).toFixed(1)+' MB/s':down+' KB/s';
+  document.getElementById('net-tx').textContent=pktTx.toLocaleString();
+  document.getElementById('net-rx').textContent=pktRx.toLocaleString();
+  const le=document.getElementById('net-lat');
+  le.textContent=lat+' ms';
+  le.style.color=lat>50?'#e8a010':'var(--cyan)';
+  setBadge('net-badge',lat>70?80:30);
+  renderSpark('net-spark',netHistory);
+}
+
+function updateProcs(){
+  const procs=PROCESSES.map(name=>({
+    name, pid:rnd(100,9999),
+    cpu:(Math.random()*30).toFixed(1),
+    mem:(Math.random()*15).toFixed(1)
+  }));
+  procs.sort((a,b)=>b.cpu-a.cpu);
+  document.getElementById('proc-list').innerHTML=procs.slice(0,8).map(p=>{
+    const cc=p.cpu>20?'var(--red)':p.cpu>10?'#e8a010':'var(--p2)';
+    return `<div class="proc-row"><span>${p.name}</span><span style="color:var(--p3)">${p.pid}</span><span style="color:${cc}">${p.cpu}</span><span style="color:var(--p2)">${p.mem}</span></div>`;
+  }).join('');
+}
+
+const logEl=document.getElementById('log-area');
+function addLog(){
+  const tmpl=LOG_TEMPLATES[rnd(0,LOG_TEMPLATES.length-1)];
+  const msg=tmpl[1].replace('{pid}',rnd(1000,9999)).replace('{c}',rnd(0,3)).replace('{n}',rnd(1,254)).replace('{t}',rnd(70,95));
+  const n=new Date(), p=v=>String(v).padStart(2,'0');
+  const time=`${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+  const div=document.createElement('div');
+  div.className='log-line';
+  div.innerHTML=`<span class="log-time">[${time}]</span><span class="log-msg ${tmpl[0]}">${msg}</span>`;
+  logEl.appendChild(div);
+  if(logEl.children.length>80) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop=logEl.scrollHeight;
+}
+
+['cpu-spark','mem-spark','net-spark'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.innerHTML=Array(SPARK_LEN).fill('<div class="spark-bar" style="height:4%"></div>').join('');
+});
+
+function tick(){
+  updateClock(); updateUptime();
+  updateCPU(); updateMem(); updateDisk(); updateNet(); updateProcs();
+  if(Math.random()<.4) addLog();
+}
+for(let i=0;i<12;i++) addLog();
+tick();
+setInterval(tick,1000);
+</script>
+</body>
+</html>
