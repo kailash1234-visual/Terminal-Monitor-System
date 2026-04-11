@@ -147,7 +147,9 @@ The project includes a live website with two pages:
 - **Landing page** — project info, install guide, download button
 - **Monitor demo** — browser-based live dashboard
 
-🌐 [Visit Website](https://terminal-monitor-system.onrender.com)
+🌐 [Visit Website]
+
+(https://terminal-monitor-system.onrender.com)
 
 ---
 
