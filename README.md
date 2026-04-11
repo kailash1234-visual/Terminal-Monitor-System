@@ -149,7 +149,7 @@ The project includes a live website with two pages:
 
 🌐 [Visit Website]
 
-(https://terminal-monitor-system.onrender.com)
+https://terminal-system-monitor.onrender.com
 
 ---
 
