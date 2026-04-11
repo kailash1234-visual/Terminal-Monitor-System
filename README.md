@@ -151,10 +151,5 @@ The project includes a live website with two pages:
 
 ---
 
-## License
-
-MIT License — free to use, modify, and distribute.
-
----
-
-<p align="center">Built with Python · psutil · curses</p>
+👤 Author
+Selva Kailash S — @kailash1234-visual
